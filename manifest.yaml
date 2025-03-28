@@ -1,54 +1,74 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mysql
-  namespace: roboshop
-  labels: # these labels belong to deployment
-    app: mysql
-    tier: db
-    project: roboshop
+  namespace: suraj
+  labels:
+    project: suraj
+    component: db
+    env: dev
+
 spec:
-  replicas: 1
   selector:
-    matchLabels: # these labels should match with pod
-      app: mysql
-      tier: db
-      project: roboshop
-  template: # this is the pod definition
+    matchLabels:
+      project: suraj
+      component: db
+      env: dev
+  serviceName: mysql
+  replicas: 3
+  template:
     metadata:
       labels:
-        app: mysql
-        tier: db
-        project: roboshop
+        project: suraj
+        component: db
+        env: dev
     spec:
       containers:
       - name: mysql
-        image: joindevops/mysql:1.0.0
+        image:
+        imagePullPolicy: Always
         envFrom:
         - configMapRef:
             name: mysql
+        volumeMounts:
+        - name: mysql
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: "suraj-sc"
+      resources:
+        requests:
+          storage: 5Gi
+
 ---
+
 apiVersion: v1
 kind: Service
 metadata:
   name: mysql
-  namespace: roboshop
+  namespace: suraj
+
 spec:
+  clusterIP: None
   selector:
-    app: mysql
-    tier: db
-    project: roboshop
+    project: suraj
+    component: db
+    env: dev
   ports:
-  - name: mysql-port
+  - name: mysql
     protocol: TCP
-    port: 3306 # this port belongs to service
-    targetPort: 3306 # this port belongs to container
+    port: 3306 
+    targetPort: 3306 
+
 ---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mysql
-  namespace: roboshop
 data:
   MYSQL_ALLOW_EMPTY_PASSWORD: "yes" # keep true in double quotes
   MYSQL_DATABASE: "cities"
